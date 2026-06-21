@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ultimate Diamond — Wall</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{ --ink:#0b0b0d; --paper:#f6f2ea; --gold:#c6a667; --muted:#7d7a70; }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;overflow:hidden}
+  body{ background:var(--ink); color:var(--paper); font-family:"Inter",sans-serif; }
+
+  .stage{ position:fixed; inset:0; }
+  .slide{ position:absolute; inset:0; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; gap:26px; padding:9vh 6vw;
+    opacity:0; transition:opacity 1.6s ease; }
+  .slide.on{ opacity:1; }
+
+  .frame{ position:relative; padding:18px; background:#111114;
+    border:1px solid rgba(198,166,103,.45); box-shadow:0 30px 80px rgba(0,0,0,.6);
+    max-height:64vh; }
+  .frame img{ display:block; max-height:calc(64vh - 36px); max-width:60vw; object-fit:contain; }
+
+  .caption{ max-width:46ch; text-align:center; }
+  .caption .quote{ font-family:"Cormorant Garamond",serif; font-weight:400;
+    font-size:clamp(20px,2.4vw,30px); line-height:1.4; font-style:italic; }
+  .caption .who{ margin-top:14px; font-size:12px; letter-spacing:.22em;
+    text-transform:uppercase; color:var(--gold); }
+
+  .wordmark{ position:fixed; top:38px; left:0; right:0; text-align:center;
+    font-family:"Cormorant Garamond",serif; font-weight:500; font-size:26px;
+    letter-spacing:.04em; z-index:5; pointer-events:none; }
+  .wordmark span{ display:block; font-family:"Inter",sans-serif; font-size:10px;
+    letter-spacing:.34em; text-transform:uppercase; color:var(--gold); margin-top:8px; }
+
+  .empty{ position:fixed; inset:0; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; text-align:center; gap:14px; }
+  .empty h2{ font-family:"Cormorant Garamond",serif; font-weight:400; font-size:30px; }
+  .empty p{ color:var(--muted); font-size:14px; }
+
+  @media (prefers-reduced-motion: reduce){ .slide{ transition:opacity .01s; } }
+</style>
+</head>
+<body>
+  <div class="wordmark">Ultimate Diamond<span>Our customers</span></div>
+  <div class="stage" id="stage"></div>
+  <div class="empty" id="empty">
+    <h2>Your photos will appear here</h2>
+    <p>Scan the code in store to share yours.</p>
+  </div>
+
+<script>
+  // ── Branding applied to each photo. Edit to taste. ──
+  let TRANSFORM = "c_fill,ar_4:5,g_auto,e_improve,e_auto_color,q_auto,f_auto";
+  // To add your logo in a corner, upload it to Cloudinary, note its public_id, then:
+  // TRANSFORM += "/l_LOGO_PUBLIC_ID,g_south_east,w_150,o_82,x_40,y_40";
+  // ────────────────────────────────────────────────────
+
+  const HOLD_MS = 7000;      // time each photo stays on screen
+  const REFRESH_MS = 30000;  // how often to check for newly approved photos
+
+  const stage = document.getElementById("stage");
+  const empty = document.getElementById("empty");
+  let cloud = null, photos = [], idx = 0, slides = [];
+
+  const esc = s => (s || "").replace(/[&<>"]/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;" }[c]));
+  const urlFor = p => `https://res.cloudinary.com/${cloud}/image/upload/${TRANSFORM}/v${p.version}/${encodeURIComponent(p.public_id)}.jpg`;
+
+  function buildSlides(){
+    stage.innerHTML = "";
+    slides = photos.map(p => {
+      const slide = document.createElement("div");
+      slide.className = "slide";
+      let caption = "";
+      if (p.blurb || p.name) {
+        caption = `<div class="caption">${ p.blurb ? `<p class="quote">&ldquo;${esc(p.blurb)}&rdquo;</p>` : "" }${ p.name ? `<p class="who">${esc(p.name)}</p>` : "" }</div>`;
+      }
+      slide.innerHTML = `<div class="frame"><img loading="eager" src="${urlFor(p)}" alt=""></div>${caption}`;
+      stage.appendChild(slide);
+      return slide;
+    });
+    idx = 0;
+    if (slides.length) slides[0].classList.add("on");
+  }
+
+  function next(){
+    if (slides.length < 2) return;
+    slides[idx].classList.remove("on");
+    idx = (idx + 1) % slides.length;
+    slides[idx].classList.add("on");
+  }
+
+  async function load(){
+    try {
+      const r = await fetch("/api/photos", { cache:"no-store" });
+      const data = await r.json();
+      cloud = data.cloud;
+      const incoming = data.photos || [];
+      const changed = JSON.stringify(incoming.map(p => p.public_id + p.version))
+                   !== JSON.stringify(photos.map(p => p.public_id + p.version));
+      photos = incoming;
+      if (!photos.length){ empty.style.display = "flex"; stage.innerHTML = ""; slides = []; return; }
+      empty.style.display = "none";
+      if (changed || !slides.length) buildSlides();
+    } catch(e){ /* keep showing what's already up */ }
+  }
+
+  load();
+  setInterval(next, HOLD_MS);
+  setInterval(load, REFRESH_MS);
+</script>
+</body>
+</html>
