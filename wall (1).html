@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ultimate Diamond — Wall</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{ --ink:#0b0b0d; --panel:#0f0f12; --paper:#f6f2ea; --gold:#c6a667; --muted:#7d7a70; }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;overflow:hidden}
+  body{ background:var(--ink); color:var(--paper); font-family:"Inter",sans-serif; }
+
+  .stage{ position:fixed; inset:0; }
+
+  /* each slide is a left/right split, crossfading on top of the previous */
+  .slide{ position:absolute; inset:0; display:flex; opacity:0; transition:opacity 1.6s ease; }
+  .slide.on{ opacity:1; }
+
+  /* LEFT 3/5 — the photo */
+  .photo-pane{ flex:0 0 60%; display:flex; align-items:center; justify-content:center; padding:5vh 4vh; }
+  .frame{ display:inline-flex; padding:16px; background:#111114;
+    border:1px solid rgba(198,166,103,.45); box-shadow:0 30px 80px rgba(0,0,0,.55); }
+  .frame img{ display:block; max-height:80vh; max-width:100%; object-fit:contain; }
+
+  /* RIGHT 2/5 — the words */
+  .text-pane{ flex:0 0 40%; display:flex; flex-direction:column; justify-content:center;
+    padding:8vh 6vh; background:var(--panel); border-left:1px solid rgba(198,166,103,.18); }
+  .quote-mark{ font-family:"Cormorant Garamond",serif; font-size:90px; line-height:.5;
+    color:var(--gold); opacity:.55; height:46px; }
+  .quote{ font-family:"Cormorant Garamond",serif; font-style:italic; font-weight:400;
+    font-size:clamp(24px,2.6vw,40px); line-height:1.4; margin-top:6px; }
+  .who{ margin-top:30px; font-size:13px; letter-spacing:.24em; text-transform:uppercase; color:var(--gold); }
+  .who::before{ content:""; display:inline-block; width:26px; height:1px; background:var(--gold);
+    vertical-align:middle; margin-right:12px; opacity:.8; }
+
+  .wordmark{ position:fixed; top:4vh; left:4vh; z-index:5; pointer-events:none;
+    font-family:"Cormorant Garamond",serif; font-weight:500; font-size:24px; letter-spacing:.04em; }
+  .wordmark span{ display:block; font-family:"Inter",sans-serif; font-size:9px;
+    letter-spacing:.34em; text-transform:uppercase; color:var(--gold); margin-top:6px; }
+
+  .empty{ position:fixed; inset:0; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; text-align:center; gap:14px; }
+  .empty h2{ font-family:"Cormorant Garamond",serif; font-weight:400; font-size:34px; }
+  .empty p{ color:var(--muted); font-size:15px; }
+
+  @media (prefers-reduced-motion: reduce){ .slide{ transition:opacity .01s; } }
+</style>
+</head>
+<body>
+  <div class="wordmark">Ultimate Diamond<span>Our customers</span></div>
+  <div class="stage" id="stage"></div>
+  <div class="empty" id="empty">
+    <h2>Your photos will appear here</h2>
+    <p>Scan the code in store to share yours.</p>
+  </div>
+
+<script>
+  // ── How each photo is edited on the wall. Edit to taste. ──
+  // c_fit shows the WHOLE photo (no cropping) — best for varied customer photos.
+  // Prefer uniform tiles instead? Swap to: c_fill,ar_4:5,g_auto
+  let TRANSFORM = "c_fit,h_1100,q_auto,f_auto";  // enhancement now happens at upload via the preset
+  // Add your logo: upload it to Cloudinary, note its public_id, then uncomment:
+  // TRANSFORM += "/l_LOGO_PUBLIC_ID,g_south_east,w_150,o_82,x_40,y_40";
+  // ──────────────────────────────────────────────────────────
+
+  const HOLD_MS = 8000;      // time each photo stays on screen
+  const REFRESH_MS = 30000;  // how often to check for newly approved photos
+
+  const stage = document.getElementById("stage");
+  const empty = document.getElementById("empty");
+  let cloud = null, photos = [], idx = 0, slides = [];
+
+  const esc = s => (s || "").replace(/[&<>"]/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;" }[c]));
+  const urlFor = p => `https://res.cloudinary.com/${cloud}/image/upload/${TRANSFORM}/v${p.version}/${encodeURIComponent(p.public_id)}.jpg`;
+
+  function textPane(p){
+    if (p.blurb) {
+      return `<div class="text-pane">
+        <div class="quote-mark">&ldquo;</div>
+        <p class="quote">${esc(p.blurb)}</p>
+        ${ p.name ? `<p class="who">${esc(p.name)}</p>` : "" }
+      </div>`;
+    }
+    // no blurb written — keep the panel graceful
+    return `<div class="text-pane">
+      <p class="quote">A moment at Ultimate Diamond.</p>
+      ${ p.name ? `<p class="who">${esc(p.name)}</p>` : "" }
+    </div>`;
+  }
+
+  function buildSlides(){
+    stage.innerHTML = "";
+    slides = photos.map(p => {
+      const slide = document.createElement("div");
+      slide.className = "slide";
+      slide.innerHTML = `<div class="photo-pane"><div class="frame"><img loading="eager" src="${urlFor(p)}" alt=""></div></div>${textPane(p)}`;
+      stage.appendChild(slide);
+      return slide;
+    });
+    idx = 0;
+    if (slides.length) slides[0].classList.add("on");
+  }
+
+  function next(){
+    if (slides.length < 2) return;
+    slides[idx].classList.remove("on");
+    idx = (idx + 1) % slides.length;
+    slides[idx].classList.add("on");
+  }
+
+  async function load(){
+    try {
+      const r = await fetch("/api/photos", { cache:"no-store" });
+      const data = await r.json();
+      cloud = data.cloud;
+      const incoming = data.photos || [];
+      const changed = JSON.stringify(incoming.map(p => p.public_id + p.version))
+                   !== JSON.stringify(photos.map(p => p.public_id + p.version));
+      photos = incoming;
+      if (!photos.length){ empty.style.display = "flex"; stage.innerHTML = ""; slides = []; return; }
+      empty.style.display = "none";
+      if (changed || !slides.length) buildSlides();
+    } catch(e){ /* keep showing what's already up */ }
+  }
+
+  load();
+  setInterval(next, HOLD_MS);
+  setInterval(load, REFRESH_MS);
+</script>
+</body>
+</html>
