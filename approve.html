@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Ultimate Diamond — Approvals</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{ --ink:#15140f; --cream:#efe3cc; --paper:#fbf7ef; --gold:#b8923f; --green:#1f8a4c; --red:#c4282d; --muted:#8a8266; --line:#e3dac6; }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{ background:var(--paper); color:var(--ink); font-family:"Poppins",system-ui,sans-serif;
+    padding:18px 16px calc(28px + env(safe-area-inset-bottom)); }
+  header{ display:flex; align-items:center; justify-content:space-between; margin-bottom:18px; }
+  .title{ font-weight:700; font-size:18px; }
+  .title span{ display:block; font-size:11px; letter-spacing:.18em; text-transform:uppercase; color:var(--gold); font-weight:600; }
+  .refresh{ background:var(--cream); border:0; border-radius:8px; padding:9px 14px; font-family:inherit;
+    font-weight:600; font-size:13px; color:var(--ink); cursor:pointer; }
+  .count{ font-size:13px; color:var(--muted); margin-bottom:14px; }
+
+  .card{ background:#fff; border:1px solid var(--line); border-radius:14px; overflow:hidden; margin-bottom:16px; }
+  .card img{ width:100%; display:block; background:var(--cream); max-height:60vh; object-fit:contain; }
+  .card .body{ padding:14px 16px; }
+  .card .nm{ font-weight:700; font-size:16px; }
+  .card .bl{ color:#333; font-size:14px; line-height:1.5; margin-top:6px; }
+  .card .none{ color:var(--muted); font-style:italic; font-size:13px; margin-top:6px; }
+  .actions{ display:flex; gap:10px; padding:0 16px 16px; }
+  .actions button{ flex:1; padding:15px; font-size:15px; font-weight:600; border:0; border-radius:10px;
+    font-family:inherit; cursor:pointer; color:#fff; }
+  .approve{ background:var(--green); }
+  .reject{ background:var(--red); }
+  .actions button:disabled{ opacity:.5; }
+
+  .empty{ text-align:center; color:var(--muted); padding:14vh 0; }
+  .empty .big{ font-size:40px; margin-bottom:10px; }
+</style>
+</head>
+<body>
+  <div id="app">
+    <header>
+      <div class="title">Approvals<span>Ultimate Diamond</span></div>
+      <button class="refresh" id="refresh">Refresh</button>
+    </header>
+    <div class="count" id="count">Loading…</div>
+    <div id="list"></div>
+  </div>
+
+<script>
+  const $ = id => document.getElementById(id);
+  let cloud = null;
+
+  const esc = s => (s || "").replace(/[&<>"]/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;" }[c]));
+  const imgUrl = p => `https://res.cloudinary.com/${cloud}/image/upload/c_fit,h_1000,q_auto,f_auto/v${p.version}/${encodeURIComponent(p.public_id)}.jpg`;
+
+  async function loadPending(){
+    const r = await fetch(`/api/pending`, { cache:"no-store" });
+    const data = await r.json();
+    if (data.error) throw new Error(data.error);
+    cloud = data.cloud;
+    return data.photos || [];
+  }
+
+  function render(photos){
+    $("count").textContent = photos.length === 0 ? "All caught up — nothing waiting."
+      : `${photos.length} photo${photos.length>1?"s":""} waiting for review`;
+    const list = $("list");
+    if (!photos.length){ list.innerHTML = `<div class="empty"><div class="big">✓</div>No photos to review right now.</div>`; return; }
+    list.innerHTML = photos.map(p => `
+      <div class="card" data-id="${esc(p.public_id)}">
+        <img src="${imgUrl(p)}" alt="">
+        <div class="body">
+          ${ p.name ? `<div class="nm">${esc(p.name)}</div>` : "" }
+          ${ p.blurb ? `<div class="bl">${esc(p.blurb)}</div>` : `<div class="none">No message written.</div>` }
+        </div>
+        <div class="actions">
+          <button class="reject" data-action="rejected">Reject</button>
+          <button class="approve" data-action="approved">Approve</button>
+        </div>
+      </div>`).join("");
+  }
+
+  async function refresh(){
+    try { render(await loadPending()); }
+    catch(e){ $("count").textContent = "Couldn't load. Tap Refresh to try again."; }
+  }
+
+  document.addEventListener("click", async (e) => {
+    const btn = e.target.closest(".actions button");
+    if (!btn) return;
+    const card = btn.closest(".card");
+    const id = card.getAttribute("data-id");
+    const action = btn.getAttribute("data-action");
+    card.querySelectorAll("button").forEach(b => b.disabled = true);
+    try {
+      const r = await fetch(`/api/moderate?id=${encodeURIComponent(id)}&action=${action}`, { method:"POST" });
+      const data = await r.json();
+      if (data.ok){ card.style.transition="opacity .3s"; card.style.opacity="0"; setTimeout(refresh, 320); }
+      else { card.querySelectorAll("button").forEach(b => b.disabled=false); alert(data.error || "Failed, try again."); }
+    } catch { card.querySelectorAll("button").forEach(b => b.disabled=false); alert("Network error, try again."); }
+  });
+
+  $("refresh").addEventListener("click", refresh);
+  refresh();
+</script>
+</body>
+</html>
