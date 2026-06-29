@@ -28,14 +28,15 @@ body{background:var(--sand);color:var(--grey);font-family:'Everett',system-ui,sa
  font-size:clamp(30px,3.4vw,56px);line-height:1.08;text-align:center;letter-spacing:.005em}
 .couple .amp{color:var(--red);margin:0 .14em;font-weight:600}
 .rule{width:56px;height:2px;background:var(--red);margin-top:18px}
-.grid{display:grid;gap:2.4vh;flex:1 1 auto;width:100%;min-height:0}
-.grid.n1{grid-template-columns:1fr}
-.grid.n2{grid-template-columns:1fr 1fr}
-.grid.n3{grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr}
+.grid{display:grid;gap:2.6vw;flex:1 1 auto;width:100%;min-height:0;justify-content:center;align-content:center}
+.grid.n1{grid-template-columns:auto}
+.grid.n2{grid-template-columns:auto auto}
+.grid.n3{grid-template-columns:auto auto;grid-template-rows:1fr 1fr}
 .grid.n3 .tile:first-child{grid-row:span 2}
-.grid.n4{grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr}
+.grid.n4{grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;justify-content:stretch}
 .tile{display:flex;align-items:center;justify-content:center;overflow:hidden;min-height:0}
-.tile img{width:100%;height:100%;object-fit:contain;display:block;filter:drop-shadow(0 14px 30px rgba(34,34,34,.22))}
+.tile img{max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain;display:block;filter:drop-shadow(0 14px 30px rgba(34,34,34,.22))}
+.grid.n1 .tile img,.grid.n2 .tile img,.grid.n3 .tile img{height:100%}
 .empty{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:12px}
 .empty h2{font-family:'Wayfinder',serif;font-weight:600;font-size:34px}
 .empty p{color:var(--muted);font-size:15px}
