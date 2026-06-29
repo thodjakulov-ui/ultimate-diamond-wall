@@ -43,7 +43,7 @@ const stage=document.getElementById("stage"),empty=document.getElementById("empt
 let cloud=null,groups=[],idx=0,slides=[],sig="";
 const esc=s=>(s||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const urlFor=p=>`https://res.cloudinary.com/${cloud}/image/upload/${TILE}/v${p.version}/${encodeURIComponent(p.public_id)}.jpg`;
-function groupize(photos){const m=new Map();photos.forEach(p=>{const k=p.group||("solo_"+p.public_id);if(!m.has(k))m.set(k,{name:p.name||"",photos:[]});m.get(k).photos.push(p);});return [...m.values()].map(g=>({name:g.name,photos:g.photos.slice(0,4)}));}
+function groupize(photos){const m=new Map();photos.forEach(p=>{const k=p.group||p.name||("solo_"+p.public_id);if(!m.has(k))m.set(k,{name:p.name||"",photos:[]});m.get(k).photos.push(p);});return [...m.values()].map(g=>({name:g.name,photos:g.photos.slice(0,4)}));}
 function nameHTML(name){if(!name)return "";const parts=name.split(" & ");if(parts.length===2)return `${esc(parts[0])}<span class="amp">&amp;</span>${esc(parts[1])}`;return esc(name);}
 function buildSlides(){stage.innerHTML="";slides=groups.map(g=>{const s=document.createElement("div");s.className="slide";const n=g.photos.length;const tiles=g.photos.map(p=>`<div class="tile"><img loading="eager" src="${urlFor(p)}" alt=""></div>`).join("");const name=g.name?`<div class="couple">${nameHTML(g.name)}</div>`:"";s.innerHTML=`${name}<div class="grid n${n}">${tiles}</div>`;stage.appendChild(s);return s;});idx=0;if(slides.length)slides[0].classList.add("on");}
 function next(){if(slides.length<2)return;slides[idx].classList.remove("on");idx=(idx+1)%slides.length;slides[idx].classList.add("on");}
