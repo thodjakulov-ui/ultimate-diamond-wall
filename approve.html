@@ -70,8 +70,7 @@
       <div class="card" data-id="${esc(p.public_id)}">
         <img src="${imgUrl(p)}" alt="">
         <div class="body">
-          ${ p.name ? `<div class="nm">${esc(p.name)}</div>` : "" }
-          ${ p.blurb ? `<div class="bl">${esc(p.blurb)}</div>` : `<div class="none">No message written.</div>` }
+          ${ p.name ? `<div class="nm">${esc(p.name)}</div>` : `<div class="none">No name given</div>` }
         </div>
         <div class="actions">
           <button class="reject" data-action="rejected">Reject</button>
